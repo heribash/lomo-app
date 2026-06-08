@@ -1,0 +1,68 @@
+name: Build LoMo AAB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Unzip TWA source
+        run: |
+          unzip -o lomo-twa-android-source.zip -d twa-src
+          if [ ! -f twa-src/twa-manifest.json ]; then
+            INNER=$(ls -d twa-src/*/ | head -n 1)
+            mv "$INNER"* twa-src/ 2>/dev/null || true
+            mv "$INNER".[!.]* twa-src/ 2>/dev/null || true
+          fi
+          ls -la twa-src
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Build AAB with Bubblewrap
+        working-directory: twa-src
+        run: |
+          bubblewrap build --skipPwaValidation
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lomo-aab
+          path: |
+            twa-src/app-release-bundle.aab
+            twa-src/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+
+      - name: Upload APK artifact (for testing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lomo-apk
+          path: twa-src/app-release-signed.apk
+          if-no-files-found: ignore
