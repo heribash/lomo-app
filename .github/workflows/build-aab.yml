@@ -31,6 +31,7 @@ jobs:
       - name: Unzip TWA source
         run: |
           unzip -o lomo-twa-android-source.zip -d twa-src
+          # If the zip extracted into a subfolder, move its contents up
           if [ ! -f twa-src/twa-manifest.json ]; then
             INNER=$(ls -d twa-src/*/ | head -n 1)
             mv "$INNER"* twa-src/ 2>/dev/null || true
